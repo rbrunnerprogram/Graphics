@@ -4,7 +4,8 @@
 #include <gl/GLU.h>
 #include <gl/glut.h> 
 #include <gl/GLAux.h>
-//#include <math.h>
+#include <math.h>
+#include <iostream>
 
 using namespace std;
 
@@ -99,6 +100,8 @@ GLfloat rotatingSpeedEmoon3 = InitialrotatingAngleEmoon3/10;
 GLfloat rotatingSpeedEmoon4 = InitialrotatingAngleEmoon4/10;
 
 GLfloat rollAmount = 0.0;
+GLfloat pitchAngle = 0.0;
+GLfloat yawAngle = 0.0;
 
 float sphereCenters[9][3];
 
@@ -114,37 +117,60 @@ float upDirection[3] = {0.0,1.0,0.0};
 //toggles the animation feature
 bool toggleAnimate = false;
 
+//toggle Lights
+bool sunlight = true;
+bool cameraLight = true;
+
 /****************************************************************************
  myKeyboard()
 
  Create a keyboard handler to zoom, pan, yaw, row, and roll
 *****************************************************************************/
 void myKeyboard( unsigned char key, int x, int y){ //keyboard keybindings
+
+	float changes[3];
+	float distance[3];
+	float overallDistance;
+
 	switch(key){
 		case 'w':  //pitch up
-			referencePoint[1] += 1;
+			referencePoint[1]+=1;
 			Display();
 			break;
-		case 's': //pitch down
-			referencePoint[1] -= 1;
+		case 's': //pitch down			
+			referencePoint[1]-=1;
 			Display();
 			break;
 		case 'a': //pan left
-			referencePoint[0] += 1;
-			Display();
-			break;
-		case 'd': //pan right
 			referencePoint[0] -= 1;
 			Display();
 			break;
+		case 'd': //pan right
+			referencePoint[0]+=1;
+			Display();
+			break;
 		case 'z': //zoom in
-			if(eyeLocation[2]>1){
-				eyeLocation[2] -= 1;
+			//overallDistance = sqrt(pow(eyeLocation[0]-referencePoint[0],2)+pow(eyeLocation[1]-referencePoint[1],2)+pow(eyeLocation[1]-referencePoint[1],2));
+			changes[0] = eyeLocation[0]-referencePoint[0];
+			changes[1] = eyeLocation[1]-referencePoint[1];
+			changes[2] = eyeLocation[2]-referencePoint[2];
+			if(eyeLocation[2] > 1){
+				eyeLocation[0] -= (changes[0]/100);
+				eyeLocation[1] -= (changes[1]/100);
+				eyeLocation[2] -= (changes[2]/100);
 			}
 			Display();
 			break;
 		case 'x': //zoom out
-			eyeLocation[2] += 1;
+			//overallDistance = sqrt(pow(eyeLocation[0]-referencePoint[0],2)+pow(eyeLocation[1]-referencePoint[1],2)+pow(eyeLocation[1]-referencePoint[1],2));
+			changes[0] = eyeLocation[0]-referencePoint[0];
+			changes[1] = eyeLocation[1]-referencePoint[1];
+			changes[2] = eyeLocation[2]-referencePoint[2];
+			if(eyeLocation[2] < 999){
+				eyeLocation[0] += (changes[0]/100);
+				eyeLocation[1] += (changes[1]/100);
+				eyeLocation[2] += (changes[2]/100);
+			}
 			Display();
 			break;
 		case 'c': //slow down rotations
@@ -187,6 +213,44 @@ void myKeyboard( unsigned char key, int x, int y){ //keyboard keybindings
 			rollAmount -=2.0;
 			Display();
 			break;
+		case 'r':
+			eyeLocation[0] += 0.2;
+			referencePoint[0] += 0.2;
+			Display();
+			break;
+		case 'f':
+			eyeLocation[1] += 0.2;
+			referencePoint[1] +=0.2;
+			Display();
+			break;
+		case 't':
+			eyeLocation[2] += 0.2;
+			referencePoint[2] += 0.2;
+			Display();
+			break;
+		case '1':
+			if(sunlight){
+				glDisable(GL_LIGHT0);
+				sunlight = false;
+			}
+			else{
+				glEnable(GL_LIGHT0);
+				sunlight = true;
+			}
+			Display();
+			break;
+		case '2':
+			if(cameraLight){
+				glDisable(GL_LIGHT1);
+				cameraLight = false;
+			}
+			else{
+				glEnable(GL_LIGHT1);
+				cameraLight = true;
+			}
+			Display();
+			break;
+
 	}
 }
 
@@ -206,7 +270,6 @@ int main(int argc, char **argv)
   glutInitWindowSize(900, 900);
   glutInitWindowPosition(100, 100);
   glutCreateWindow("Solar System");
-  //glutFullScreen();
 
   Initialize();
 
@@ -236,13 +299,18 @@ void Initialize()
   glShadeModel(GL_SMOOTH);
 
   // set up a single white light
-  GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0 };
+  GLfloat lightColor[] = { 1.0f, 1.0f, 0.0f, 1.0 };
+  GLfloat lightColor2[] = { 1.0f, 1.0f, 1.0f, 1.0 };
 
   glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor);
   glLightfv(GL_LIGHT0, GL_SPECULAR, lightColor);
 
+  glLightfv(GL_LIGHT1, GL_DIFFUSE, lightColor2);
+  glLightfv(GL_LIGHT1, GL_SPECULAR, lightColor2);
+
   glEnable(GL_LIGHTING);
   glEnable(GL_LIGHT0);
+  glEnable(GL_LIGHT1);
   glEnable(GL_DEPTH_TEST);
 
   // make the modelview matrix active, and initialize it
@@ -314,6 +382,10 @@ void Display()
 	GLfloat lightPos[4] = {0.0, 0.0, 0.0, 1.0};
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
+	//Initiallize camera light
+	GLfloat lightPos2[4] = {eyeLocation[0], eyeLocation[1], eyeLocation[2], 1.0}; 
+	glLightfv(GL_LIGHT1, GL_POSITION, lightPos2);
+
 	DrawFrame();
 
 	glFlush();
@@ -331,10 +403,6 @@ void DrawFrame()
 	//Create quadric spheres
 	GLUquadric *sunObject;
 	GLUquadric *firstPlanet;
-	/*GLUquadric *secondPlanet;
-	GLUquadric *thirdPlanet;
-	GLUquadric *fourthPlanet;
-	GLUquadric *fifthPlanet;*/
 
 	sunTextureAttempt = LoadBMP("sunText.bmp"); //load sunTexture bitmap
 	glEnable(GL_TEXTURE_2D); //enable 2D textures
@@ -344,7 +412,12 @@ void DrawFrame()
 	sunObject = gluNewQuadric();
 	gluQuadricDrawStyle(sunObject, GLU_FILL);
 	gluQuadricNormals(sunObject, GLU_SMOOTH);
-	gluQuadricOrientation(sunObject, GLU_INSIDE);  //reverses normal direction
+	if(sunlight){
+		gluQuadricOrientation(sunObject, GLU_INSIDE);  //reverses normal direction
+	}
+	else{
+		gluQuadricOrientation(sunObject, GLU_OUTSIDE);
+	}
 	gluQuadricTexture(sunObject, GL_TRUE); //allows texture mapping
 	
 	//Create planet/moon sphere
@@ -441,8 +514,5 @@ void DrawFrame()
 	//Delete Spheres
 	gluDeleteQuadric(sunObject);
 	gluDeleteQuadric(firstPlanet);
-	/*gluDeleteQuadric(secondPlanet);
-	gluDeleteQuadric(thirdPlanet);
-	gluDeleteQuadric(fourthPlanet);
-	gluDeleteQuadric(fifthPlanet);*/
+
 } // end DrawFrame()
